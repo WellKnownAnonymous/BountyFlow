@@ -1,6 +1,6 @@
 [project]
 name = "bountyflow"
-version = "2.2.0"
+version = "2.7.0"
 description = "Scoped bug-bounty recon: wildcard + app fuzz + API checks (AI-agent ready)"
 readme = "README.md"
 requires-python = ">=3.10"

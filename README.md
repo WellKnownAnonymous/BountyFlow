@@ -1,4 +1,4 @@
-# BountyFlow v2 — scoped 1+2+3 recon (AI-agent ready)
+# BountyFlow v2.4 — scoped 1+2+3 recon + bug-hunt (AI-agent ready)
 
 `bountyflow` chains **P1 wildcard recon → P2 single-app fuzz → P3 API checks**,
 enforces `--exclude`, and saves raw output + `AI_SUMMARY.json` for agents/humans.
@@ -53,9 +53,11 @@ python3 bountyflow.py -d example.com --phases 2,3 \
 
 ## What it does
 
-- **P1:** `amass + subfinder → filter excludes → httpx-toolkit → naabu/nmap → katana+gau+waybackurls → nuclei`
-- **P2:** `feroxbuster → ffuf params → arjun → dalfox (v3 syntax) → nuclei app → js/secrets regex`
-- **P3:** `ffuf api-endpoints → nuclei misconfig+graphql → curl introspect/swagger/openapi` + `API_MANUAL_CHECKLIST.md`
+- **P1:** `amass + subfinder/assetfinder/findomain → filter excludes → httpx-toolkit → live_urls/hosts → naabu/nmap → katana+gau+waybackurls → nuclei`
+- **P2:** `feroxbuster --auto-tune → ffuf -ac → arjun → dalfox (v3 syntax) → nuclei app → js fetch 40 bodies → trufflehog/gitleaks + regex`
+- **P3:** `ffuf -ac → nuclei misconfig+graphql → curl introspect/swagger/openapi → rpc hardening/rate-limit/batch + web llms/csp/takeover/explorer` + `API_MANUAL_CHECKLIST.md`
+
+Layout: `bountyflow/config|cli|tools|scope|summarize|utils + phases/phase1|phase2|phase3|summary + analysis/js_secrets|rpc_checks|web_checks` (`bountyflow.py` is a shim).
 
 All shell paths are quoted (workspace may contain spaces like `My Tools`).
 

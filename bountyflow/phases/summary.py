@@ -41,10 +41,13 @@ def build(domain: str, rdir: Path, s1: dict | None, s2: dict | None, s3: dict | 
         "phase1": s1, "phase2": s2, "phase3": s3,
         "priority_review": crit[:30],
         "medium_review": medium[:30],
+        "auth_headers_set": bool(cfg.headers),
         "next_manual": [
             "Verify nuclei critical/high/medium in Burp Repeater (false positives common)",
             "Review ferox 200/301 + 403 (bypass: X-Forwarded-For, /%2e/, method override)",
-            "Review jsfiles.txt + secrets.txt for keys",
+            "Review js_bodies/secrets_body.json + trufflehog/gitleaks (FP: publishable keys, asn1 strings)",
+            "Explorer: test /api/v2/addresses/:hash vs other hash (IDOR), sort/order injection, rate-limit 20x",
+            "RPC: compare providers (divergence), batch 10x, no sensitive methods (already disabled = pass)",
             "Run Burp active scan on 2-3 high-value endpoints only (avoid WAF ban)",
         ],
     }
@@ -59,4 +62,26 @@ def build(domain: str, rdir: Path, s1: dict | None, s2: dict | None, s3: dict | 
         "", "## Manual queue", "- [ ] IDOR/BOLA  - [ ] authz  - [ ] rate-limit  - [ ] file upload  - [ ] SSRF/SSTI",
     ]
     atomic_write(rdir / "findings.md", "\n".join(md))
+    # HackerOne-ready stub: one section per critical/high with repeater steps
+    h1 = [f"# HackerOne draft — {domain}", "", f"Run: `{rdir}`", "",
+          "## Summary", f"{len(crit)} critical/high, {len(medium)} medium. Verify each below in Burp Repeater before submitting.", ""]
+    for h in (crit[:10] + medium[:5]):
+        h1 += [f"### [{h.get('severity')}] {h.get('template')}",
+               f"- Host: `{h.get('host')}`", f"- Matched: `{h.get('matched')}`",
+               "- Repro: Burp Repeater → copy request from nuclei log → check status/body → screenshot",
+               "- Impact: explain authz/data impact; mark FP if WAF block/headers-only", ""]
+    h1 += ["## Attachments", "- nuclei jsonl lines", "- httpx live.txt + config.json", ""]
+    atomic_write(rdir / "findings_hackerone.md", "\n".join(h1))
+    # Burp bundle: scope + repeater (uses clean live_urls when available)
+    try:
+        from ..burp import write_burp_bundle
+        from ..utils import parse_lines as _pl
+        _live = _pl(rdir / "live_urls.txt") or _pl(rdir / "live.txt")
+        _nuc = (s1 or {}).get("nuclei", []) + (s2 or {}).get("nuclei", []) + (s3 or {}).get("nuclei", [])
+        _explorer = None
+        if domain.endswith("arc.io"):
+            _explorer = "https://explorer.testnet.arc.io"
+        write_burp_bundle(rdir, domain, _live, _nuc, cfg.api_url, _explorer)
+    except Exception as e:
+        LOG.warning("burp bundle failed: %s", e)
     LOG.info("Wrote AI_SUMMARY.json + findings.md in %s", rdir)

@@ -18,6 +18,40 @@ def q(p: object) -> str:
     return shlex.quote(str(p))
 
 
+def headers_flag(headers: tuple[str, ...] | list[str], flag: str = "-H") -> str:
+    """Build `-H 'K: V' -H ...` fragment. Validates `K: V` shape to avoid injection."""
+    parts: list[str] = []
+    for h in headers or ():
+        if ":" not in h:
+            raise ValueError(f"invalid --header (need 'Name: value'): {h!r}")
+        parts.append(f" {flag} {q(h.strip())}")
+    return "".join(parts)
+
+
+def proxy_flag(proxy: str, kind: str) -> str:
+    """Per-tool proxy fragment. kind: httpx|nuclei|katana|ffuf|ferox|gobuster|curl|dirsearch."""
+    if not proxy:
+        return ""
+    p = q(proxy)
+    if kind == "httpx":
+        return f" -http-proxy {p}"
+    if kind == "nuclei":
+        return f" -proxy {p}"
+    if kind == "katana":
+        return f" -proxy {p}"
+    if kind == "ffuf":
+        return f" -x {p} -k"
+    if kind == "ferox":
+        return f" --proxy {p} --insecure"
+    if kind == "gobuster":
+        return f" --proxy {p} -k"
+    if kind == "curl":
+        return f" -x {p} -k"
+    if kind == "dirsearch":
+        return f" --proxy={proxy}"
+    return ""
+
+
 def run_cmd(cmd: str, cwd: Path, out_file: Path | None = None, timeout: int = 3600):
     """Run shell cmd. Never raises. Saves combined blob to out_file."""
     LOG.info("$ %s", cmd)

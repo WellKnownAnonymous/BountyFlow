@@ -34,6 +34,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--threads", type=int, default=None, help="override thread count (default 100 aggressive, 40 normal)")
     ap.add_argument("--timeout", type=int, default=3600, help="per-step timeout seconds (default 3600)")
     ap.add_argument("--output-dir", default=None, help="custom output base dir (default ./finding)")
+    ap.add_argument("--header", action="append", default=[], help="custom header 'Name: value' (repeatable, e.g. --header 'Cookie: sid=...')")
+    ap.add_argument("--cookie", default=None, help="shorthand for --header 'Cookie: ...' (session from Burp/brower)")
+    ap.add_argument("--proxy", default="", help="route scans via Burp, e.g. http://127.0.0.1:8080")
     ap.add_argument("--tools-check", action="store_true", help="check external binaries and exit")
     ap.add_argument("-v", "--verbose", action="store_true")
     ap.add_argument("--version", action="store_true", help="print version and exit")
@@ -66,10 +69,23 @@ def main(argv: list[str] | None = None) -> int:
 
     threads = a.threads or (100 if a.aggressive else 40)
     out_base = Path(a.output_dir) if a.output_dir else FINDINGS
+    try:
+        headers = tuple(h.strip() for h in (a.header or []) if h.strip())
+        if a.cookie:
+            headers = headers + (f"Cookie: {a.cookie.strip()}",)
+        # validate early
+        from .utils import headers_flag, validate_url as _vu
+        headers_flag(headers)
+        proxy = (a.proxy or "").strip()
+        if proxy:
+            _vu(proxy.replace("http://", "https://") if "://" not in proxy else proxy)
+    except ValueError as e:
+        ap.error(str(e))
+        return 2
     cfg = RunConfig(
         domain=domain, phases=phases, single_url=single_url, api_url=api_url,
         aggressive=a.aggressive, dry_run=a.dry_run, excludes=excludes,
-        timeout=a.timeout, threads=threads, out_base=out_base,
+        timeout=a.timeout, threads=threads, out_base=out_base, headers=headers, proxy=proxy,
     )
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -86,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
         "tool": f"bountyflow/{__version__}", "domain": domain,
         "phases": sorted(phases), "single_url": single_url, "api_url": api_url,
         "aggressive": a.aggressive, "threads": threads, "excludes": sorted(excludes),
+        "headers_set": bool(headers), "headers_count": len(headers),
+        "proxy_set": bool(proxy),
         "started": datetime.now(timezone.utc).isoformat(),
     }, indent=2))
 

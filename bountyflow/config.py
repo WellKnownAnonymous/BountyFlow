@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-__version__ = "2.2.0"
+__version__ = "2.7.0"
 
 BASE = Path(__file__).resolve().parent.parent
 FINDINGS = BASE / "finding"
@@ -23,6 +23,8 @@ class RunConfig:
     timeout: int = 3600
     threads: int = 100
     out_base: Path = FINDINGS
+    headers: tuple[str, ...] = ()
+    proxy: str = ""
 
 
 def find_wordlist(*candidates: str) -> str:
