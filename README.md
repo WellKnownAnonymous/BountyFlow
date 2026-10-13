@@ -1,57 +1,88 @@
-# BountyFlow — 1+2+3 aggressive workflow (AI-agent ready)
+# BountyFlow v2 — scoped 1+2+3 recon (AI-agent ready)
 
-Python CLI that chains **wildcard recon + single-app fuzz + API** and saves
-raw output + AI-readable summaries. Built for `~/Desktop/My Tools/BountyFlow`.
+`bountyflow` chains **P1 wildcard recon → P2 single-app fuzz → P3 API checks**,
+enforces `--exclude`, and saves raw output + `AI_SUMMARY.json` for agents/humans.
 
-## Install (already done on this box, `-y` auto-accept)
+> Only test **in-scope / authorized** targets. Excluded hosts are filtered
+> after enumeration and before any probing/scanning.
+
+## Install
+
+Needs Kali + ProjectDiscovery stack. Python itself is stdlib-only.
+
 ```bash
 echo 'kali' | sudo -S DEBIAN_FRONTEND=noninteractive apt update
 echo 'kali' | sudo -S DEBIAN_FRONTEND=noninteractive apt install -y \
-  seclists subfinder katana dalfox findomain naabu hakrawler \
-  trufflehog gitleaks assetfinder golang-go
+  seclists subfinder httpx-toolkit katana dalfox findomain naabu \
+  trufflehog gitleaks assetfinder golang-go nmap nuclei ffuf feroxbuster
 pip install arjun --break-system-packages
 export PATH=$PATH:/home/kali/go/bin
 go install github.com/lc/gau/v2/cmd/gau@latest
 go install github.com/tomnomnom/waybackurls@latest
 echo 'kali' | sudo -S ln -sf /home/kali/go/bin/gau /usr/local/bin/gau
 echo 'kali' | sudo -S ln -sf /home/kali/go/bin/waybackurls /usr/local/bin/waybackurls
-echo 'kali' | sudo -S ln -sf /home/kali/.local/bin/arjun /usr/local/bin/arjun
+
+# optional: install CLI
+pip install -e . --break-system-packages
+python3 bountyflow.py --tools-check
+python3 bountyflow.py --version
 ```
 
-Verified tools: `amass subfinder assetfinder findomain httpx naabu nmap katana
-hakrawler gau waybackurls ffuf gobuster feroxbuster arjun dalfox nuclei sqlmap
-trufflehog gitleaks nikto wpscan`.
+Note: Kali ships python `httpx` at `/usr/bin/httpx`. BountyFlow auto-prefers
+`httpx-toolkit` (ProjectDiscovery). Install `httpx-toolkit`, not just `httpx`.
 
 ## Use
+
 ```bash
 cd ~/Desktop/My\ Tools/BountyFlow
-# dry-run (print only)
-python3 bountyflow.py -d target.com --phases 1 --dry-run
-python3 bountyflow.py -d target.com --phases 2,3 --single-url https://app.target.com --aggressive --dry-run
-# real run - ONLY in-scope / authorized
-python3 bountyflow.py -d target.com --phases 1 --aggressive
-python3 bountyflow.py -d target.com --phases 2,3 --single-url https://app.target.com --api-url https://api.target.com --aggressive
-python3 bountyflow.py -d target.com --phases all --aggressive
+# checks
+python3 bountyflow.py --tools-check
+python3 bountyflow.py -d example.com --phases 1 --dry-run
+
+# Arc example (excludes are enforced):
+python3 bountyflow.py -d arc.io --phases 1 --dry-run \
+  --exclude help.arc.io,explorer.arc.io,community.arc.io
+python3 bountyflow.py -d arc.io --phases all --aggressive \
+  --single-url https://arc.io --api-url https://rpc.testnet.arc.network \
+  --exclude help.arc.io,explorer.arc.io,community.arc.io
+
+# custom threads / timeout / output
+python3 bountyflow.py -d example.com --phases 2,3 \
+  --single-url https://app.example.com --threads 50 --timeout 1800
 ```
 
 ## What it does
-- **P1 recon:** `amass + subfinder → httpx → naabu/nmap → katana+gau+waybackurls → nuclei`
-- **P2 app:** `feroxbuster → ffuf params → arjun → dalfox → nuclei app → js/secrets regex`
-- **P3 api:** `ffuf api-endpoints → nuclei graphql → curl graphql introspect + swagger/openapi` + `API_MANUAL_CHECKLIST.md`
 
-## Output (for AI agents like OpenCode)
+- **P1:** `amass + subfinder → filter excludes → httpx-toolkit → naabu/nmap → katana+gau+waybackurls → nuclei`
+- **P2:** `feroxbuster → ffuf params → arjun → dalfox (v3 syntax) → nuclei app → js/secrets regex`
+- **P3:** `ffuf api-endpoints → nuclei misconfig+graphql → curl introspect/swagger/openapi` + `API_MANUAL_CHECKLIST.md`
+
+All shell paths are quoted (workspace may contain spaces like `My Tools`).
+
+## Output
+
 ```
 runs/<target>/<timestamp>/
-  subs.txt live.txt urls.txt katana.txt gau.txt
+  config.json subs.txt live.txt urls.txt katana.txt gau.txt
   nmap.txt nuclei_recon.jsonl nuclei_app.jsonl nuclei_api.jsonl
   ferox.txt ffuf_params.json api_fuzz.json dalfox.txt jsfiles.txt secrets.txt
-  STEP_*.json + *.log          # per-step cmd + rc
-  SUMMARY_phase*.json          # counts
-  AI_SUMMARY.json              # <-- agent reads this first
-  findings.md                  # top critical/high + manual queue
+  STEP_*.json + *.log
+  SUMMARY_phase*.json
+  AI_SUMMARY.json      # agent reads this first
+  findings.md
   API_MANUAL_CHECKLIST.md
 ```
 
-Agent loop: read `AI_SUMMARY.json` → verify `priority_review[]` in Burp Repeater →
-review `ferox.txt/jsfiles.txt/secrets.txt` → do manual IDOR/BOLA/rate-limit checklist.
-False positives expected from nuclei — always re-verify.
+Agent loop: `AI_SUMMARY.json:priority_review[]` → verify in Burp Repeater →
+review `ferox.txt/jsfiles.txt/secrets.txt` → manual IDOR/BOLA/rate-limit.
+Nuclei FPs expected — always re-verify.
+
+## Dev
+
+```bash
+python3 -m py_compile bountyflow.py
+python3 bountyflow.py --tools-check
+ruff check bountyflow.py || true
+```
+
+License: MIT.

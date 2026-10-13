@@ -1,0 +1,26 @@
+[project]
+name = "bountyflow"
+version = "2.0.0"
+description = "Scoped bug-bounty recon: wildcard + app fuzz + API checks (AI-agent ready)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "BountyFlow" }]
+keywords = ["bugbounty", "recon", "nuclei", "fuzzing", "appsec"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Information Technology",
+  "Topic :: Security",
+]
+dependencies = []
+
+[project.scripts]
+bountyflow = "bountyflow:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"

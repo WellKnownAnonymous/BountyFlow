@@ -1,0 +1,4 @@
+# BountyFlow needs no Python deps (stdlib only).
+# External binaries are required — see README / `bountyflow.py --tools-check`.
+# Optional dev tools:
+#   pip install -e ".[dev]"

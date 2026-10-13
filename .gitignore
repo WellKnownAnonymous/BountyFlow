@@ -1,0 +1,40 @@
+# Python / runtime
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.Python
+.venv/
+venv/
+env/
+ENV/
+
+# BountyFlow run output (targets, raw tool output, findings)
+runs/
+*.log
+*.jsonl
+!pyproject.toml
+
+# Local config / secrets (never commit scan scope secrets)
+.env
+.env.*
+config.local.json
+*token*
+*secret*.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
