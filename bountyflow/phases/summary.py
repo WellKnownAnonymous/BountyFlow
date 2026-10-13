@@ -1,0 +1,62 @@
+"""AI summary + findings."""
+from __future__ import annotations
+
+import json
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+from ..config import API_WORDS, DIR_MEDIUM, PARAM_WORDS, RunConfig, __version__
+from ..logging_setup import LOG
+from ..utils import atomic_write
+
+
+def build(domain: str, rdir: Path, s1: dict | None, s2: dict | None, s3: dict | None, cfg: RunConfig, started: float) -> None:
+    crit: list[dict] = []
+    medium: list[dict] = []
+    for s in (s1, s2, s3):
+        if not s:
+            continue
+        for h in s.get("nuclei", []):
+            sev = str(h.get("severity", "")).lower()
+            if sev in ("critical", "high"):
+                crit.append(h)
+            elif sev == "medium":
+                medium.append(h)
+    ai = {
+        "tool": f"bountyflow/{__version__}",
+        "target": domain,
+        "run_dir": str(rdir),
+        "time": datetime.now(timezone.utc).isoformat(),
+        "duration_s": round(time.time() - started, 1),
+        "config": {
+            "phases": sorted(cfg.phases),
+            "aggressive": cfg.aggressive,
+            "threads": cfg.threads,
+            "excludes": sorted(cfg.excludes),
+            "single_url": cfg.single_url,
+            "api_url": cfg.api_url,
+        },
+        "wordlists": {"dir": DIR_MEDIUM, "params": PARAM_WORDS, "api": API_WORDS},
+        "phase1": s1, "phase2": s2, "phase3": s3,
+        "priority_review": crit[:30],
+        "medium_review": medium[:30],
+        "next_manual": [
+            "Verify nuclei critical/high/medium in Burp Repeater (false positives common)",
+            "Review ferox 200/301 + 403 (bypass: X-Forwarded-For, /%2e/, method override)",
+            "Review jsfiles.txt + secrets.txt for keys",
+            "Run Burp active scan on 2-3 high-value endpoints only (avoid WAF ban)",
+        ],
+    }
+    atomic_write(rdir / "AI_SUMMARY.json", json.dumps(ai, indent=2))
+    top = [f"- [{h.get('severity')}] `{h.get('template')}` {h.get('host')}" for h in crit[:30]] or ["- none yet"]
+    if medium:
+        top += ["", "## Medium (review after critical/high)"] + [f"- [medium] `{h.get('template')}` {h.get('host')}" for h in medium[:15]]
+    counts = {k: (v if not isinstance(v, list) else len(v)) for k, v in {**(s1 or {}), **(s2 or {}), **(s3 or {})}.items()}
+    md = [
+        f"# findings {domain}", "", f"- run: {rdir}", f"- critical/high: {len(crit)} medium: {len(medium)}", "",
+        "## Top hits", *top, "", "## Counts", f"```json\n{json.dumps(counts, indent=2)}\n```",
+        "", "## Manual queue", "- [ ] IDOR/BOLA  - [ ] authz  - [ ] rate-limit  - [ ] file upload  - [ ] SSRF/SSTI",
+    ]
+    atomic_write(rdir / "findings.md", "\n".join(md))
+    LOG.info("Wrote AI_SUMMARY.json + findings.md in %s", rdir)

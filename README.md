@@ -62,8 +62,8 @@ All shell paths are quoted (workspace may contain spaces like `My Tools`).
 ## Output
 
 ```
-runs/<target>/<timestamp>/
-  config.json subs.txt live.txt urls.txt katana.txt gau.txt
+finding/<target>/<timestamp>/
+  config.json subs.txt live.txt live_urls.txt live_hosts.txt urls.txt katana.txt gau.txt
   nmap.txt nuclei_recon.jsonl nuclei_app.jsonl nuclei_api.jsonl
   ferox.txt ffuf_params.json api_fuzz.json dalfox.txt jsfiles.txt secrets.txt
   STEP_*.json + *.log

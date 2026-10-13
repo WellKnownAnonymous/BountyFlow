@@ -1,6 +1,6 @@
 [project]
 name = "bountyflow"
-version = "2.0.0"
+version = "2.2.0"
 description = "Scoped bug-bounty recon: wildcard + app fuzz + API checks (AI-agent ready)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,7 +16,10 @@ classifiers = [
 dependencies = []
 
 [project.scripts]
-bountyflow = "bountyflow:main"
+bountyflow = "bountyflow.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]

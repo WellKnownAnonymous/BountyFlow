@@ -11,6 +11,8 @@ ENV/
 
 # BountyFlow run output (targets, raw tool output, findings)
 runs/
+finding/
+findings/
 *.log
 *.jsonl
 !pyproject.toml
